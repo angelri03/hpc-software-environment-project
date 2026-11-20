@@ -1,0 +1,32 @@
+# --- editor/os ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- reframe ---
+/stage/
+/output/
+/perflogs/
+/reports/
+/reframe.log
+/reframe.out
+/*.log
+
+# --- slurm ---
+slurm-*.out
+*.err
+
+# --- easybuild ---
+/easybuild/
+/eb-build/
+/eb-install/
+
+# --- python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
