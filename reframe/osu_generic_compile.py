@@ -18,6 +18,22 @@ from reframe.core.builtins import (
     sanity_function,
 )
 
+PERFORMANCE_REFERENCES = {
+    "aion": {
+        "same_numa": {"latency": 0.59, "bandwidth": 14858},
+        "cross_numa": {"latency": 2.34, "bandwidth": 12098},
+        "cross_socket": {"latency": 3.78, "bandwidth": 9870},
+        "inter_node": {"latency": 3.89, "bandwidth": 12328},
+    },
+    "iris": {
+        "same_numa": {"latency": 1.81, "bandwidth": 16362},
+        "cross_socket": {"latency": 3.64, "bandwidth": 16692},
+        "inter_node": {"latency": 4.09, "bandwidth": 12123},
+    },
+}
+
+PERFORMANCE_TOLERANCE = 0.30
+
 AION_PLACEMENTS = {
     "same_numa": ((0, 0, 0), (1, 0, 0)),
     "cross_numa": ((0, 0, 0), (16, 0, 1)),
@@ -61,9 +77,16 @@ class OMBGenericBuild(rfm.CompileOnlyRegressionTest):
         directory = shlex.quote(SOURCE_SUBDIR)
         self.build_system.commands = [
             f"cd {directory} && ./configure CC=mpicc CXX=mpicxx",
-            f"cd {directory} && make -j 8",
+            f"make -C {directory} -j 8",
             f"test -x {directory}/mpi/pt2pt/osu_latency",
             f"test -x {directory}/mpi/pt2pt/osu_bw",
+        ]
+        self.build_system.commands = [
+            f"(cd {directory} && ./configure "
+            "CC=mpicc CXX=mpicxx "
+            '--prefix="$(pwd)/../osu")',
+            f"make -C {directory} -j 8",
+            f"make -C {directory} install",
         ]
 
 
@@ -102,7 +125,13 @@ class _OMBGenericRun(rfm.RunOnlyRegressionTest):
         # A successful compile dependency is guaranteed before this hook.
         build = self.getdep("OMBGenericBuild")
         self.executable = os.path.join(
-            build.stagedir, SOURCE_SUBDIR, "mpi", "pt2pt", self.omb_binary
+            build.stagedir,
+            "osu",
+            "libexec",
+            "osu-micro-benchmarks",
+            "mpi",
+            "pt2pt",
+            self.omb_binary,
         )
 
         if cluster == "iris":
@@ -154,6 +183,27 @@ printf 'BIND_OK rank=%s host=%s cpu=%s socket=%s numa=%s\n' \
 
         launcher = self.job.launcher.run_command(self.job)
         self.prerun_cmds = [f"{launcher} bash -c {shlex.quote(checker)} || exit 1"]
+
+    @run_before("run")
+    def configure_performance_reference(self):
+        cluster = self.current_system.name
+
+        metric = "latency" if self.omb_binary == "osu_latency" else "bandwidth"
+
+        unit = "us" if metric == "latency" else "MB/s"
+
+        value = PERFORMANCE_REFERENCES[cluster][self.placement][metric]
+
+        self.reference = {
+            f"{cluster}:batch": {
+                metric: (
+                    value,
+                    -PERFORMANCE_TOLERANCE,
+                    PERFORMANCE_TOLERANCE,
+                    unit,
+                )
+            }
+        }
 
     @sanity_function
     def validate(self):
