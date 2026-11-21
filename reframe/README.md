@@ -172,4 +172,4 @@ initialization issue.
 
 - **Existing Module:** Implemented and tested on Aion and Iris.
 - **Generic Compilation:** Implemented and tested on Aion and Iris.
-- **EasyBuild Compilation:** Implemented for Aion and Iris.
+- **EasyBuild Compilation:** Implemented and tested on Aion and Iris.
