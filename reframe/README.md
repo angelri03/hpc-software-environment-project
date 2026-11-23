@@ -3,6 +3,7 @@
 ReFrame tests for OSU Micro-Benchmarks (OMB) 7.5 on the ULHPC Aion and Iris clusters.
 
 The **Existing Module**, **Generic Compilation**, and **EasyBuild Compilation** cases are implemented.
+A standalone **Local Build** check (`osu_local.py`) also builds OMB from source without running benchmarks.
 
 ## Directory Structure
 
@@ -24,7 +25,8 @@ hpc-se-project/
     ├── src/                     # OSU source archive cache for generic compile (created automatically)
     ├── osu_existing_module.py   # OMB tests using the existing module
     ├── osu_generic_compile.py   # Build OMB from source
-    └── osu_easybuild_compile.py # Build OMB with EasyBuild
+    ├── osu_easybuild_compile.py # Build OMB with EasyBuild
+    └── osu_local.py             # Standalone build-only check (uses config/ulhpc.py)
 ```
 
 ## Prerequisites
@@ -38,6 +40,9 @@ hpc-se-project/
 - EasyBuild compilation requires `tools/EasyBuild` and write access
   to the ReFrame staging directory, with network access for missing sources or
   dependencies. It uses a project-local EasyConfig with `toolchain/foss/2025a`.
+- The local build check uses the repository-level site configuration
+  `config/ulhpc.py` and its `foss-2025a` programming environment, and needs
+  `curl` and network access on the login node to download the source archive.
 
 ## Usage
 
@@ -99,12 +104,20 @@ are kept under the shared build test's staging directory in `eb/`, `eb-build/`,
 and `eb-sources/`, respectively. The latency and bandwidth tests reuse the
 installed binaries through ReFrame dependencies.
 
-The script currently expects
-`OSU-Micro-Benchmarks-7.5-foss-2025a-project.eb`, while the checked-in file is
-`OSU-Micro-Benchmarks-7.5-foss-2025a.eb`. Align the script's `EASYCONFIG` value
-with the filename before running. The EasyConfig's `versionsuffix = '-project'`
-sets the installation version to `7.5-foss-2025a-project` independently of its
-filename.
+The script uses `OSU-Micro-Benchmarks-7.5-foss-2025a-project.eb` (its
+`EASYCONFIG` value). The EasyConfig's `versionsuffix = '-project'` sets the
+installation version to `7.5-foss-2025a-project` independently of its filename.
+
+**Local build check:**
+
+Run from the repository root, using the shared site configuration:
+
+```bash
+export RFM_CONFIG_FILES=$PWD/config/ulhpc.py
+reframe -c reframe/osu_local.py -n OSUBuildLocalCheck -r
+```
+
+This check only compiles OMB 7.5; it does not run any benchmarks.
 
 ReFrame automatically handles Slurm job submission, CPU binding verification, benchmark execution, and performance extraction.
 
@@ -134,6 +147,11 @@ both benchmark executables exist. The dependent benchmark tests load
 `eb/software/OSU-Micro-Benchmarks/7.5-foss-2025a-project/` under the build stage,
 using the same placement, binding, sanity, and performance checks as the other
 cases.
+
+**Local Build (`osu_local.py`):** A session fixture downloads the OMB 7.5
+archive on the login node and verifies its SHA-256 checksum.
+`OSUBuildLocalCheck` then builds it with Autotools as a Slurm job in the
+`foss-2025a` environment and passes if `osu_latency` and `osu_bw` were built.
 
 All three implementations run the following measurements for each applicable placement:
 
@@ -192,3 +210,4 @@ initialization issue.
 - **Existing Module:** Implemented and tested on Aion and Iris.
 - **Generic Compilation:** Implemented and tested on Aion and Iris.
 - **EasyBuild Compilation:** Implemented and tested on Aion and Iris.
+- **Local Build:** Build-only check implemented; benchmarks are not run from it.

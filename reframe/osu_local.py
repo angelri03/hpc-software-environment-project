@@ -4,7 +4,7 @@
 * ``build_osu_local``  -- compile-only test that builds the OSU Micro-Benchmarks from source.
 
 run with:
-reframe -c tests/osu_local.py -n OSUBuildLocalCheck -r
+reframe -c reframe/osu_local.py -n OSUBuildLocalCheck -r
 """
 
 import os
