@@ -27,13 +27,13 @@ EASYCONFIG = "OSU-Micro-Benchmarks-7.5-foss-2025a-project.eb"
 OMB_INSTALL_VERSION = "7.5-foss-2025a-project"
 
 PERFORMANCE_REFERENCES = {
-    "aion": {
+    "aion:batch": {
         "same_numa": {"latency": 0.59, "bandwidth": 14858},
         "cross_numa": {"latency": 2.34, "bandwidth": 12098},
         "cross_socket": {"latency": 3.78, "bandwidth": 9870},
         "inter_node": {"latency": 3.89, "bandwidth": 12328},
     },
-    "iris": {
+    "iris:broadwell": {
         "same_numa": {"latency": 1.81, "bandwidth": 16362},
         "cross_socket": {"latency": 3.64, "bandwidth": 16692},
         "inter_node": {"latency": 4.09, "bandwidth": 12123},
@@ -56,7 +56,7 @@ IRIS_PLACEMENTS = {
 @rfm.simple_test
 class OMBEasyBuildBuild(rfm.CompileOnlyRegressionTest):
     descr = "Build OMB 7.5 using a custom foss/2025a EasyConfig"
-    valid_systems = ["aion:batch", 'iris:batch']
+    valid_systems = ["aion:batch", "iris:broadwell", "iris:skylake"]
     valid_prog_environs = ["testing-easybuild"]
     # Refer to the shared-project EasyConfig (tested Aion/Iris approach).
     sourcesdir = None
@@ -85,7 +85,7 @@ class OMBEasyBuildBuild(rfm.CompileOnlyRegressionTest):
 
 class _OMBEasyBuildRun(rfm.RunOnlyRegressionTest):
     placement = parameter(list(AION_PLACEMENTS))
-    valid_systems = ["aion:batch", "iris:batch"]
+    valid_systems = ["aion:batch", "iris:broadwell", "iris:skylake"]
     valid_prog_environs = ["testing-foss"]
     executable = "/bin/true"
     num_tasks = 2
@@ -169,10 +169,13 @@ printf 'BIND_OK rank=%s host=%s cpu=%s socket=%s numa=%s\n' \
 
         metric = "latency" if self.omb_binary == "osu_latency" else "bandwidth"
         unit = "us" if metric == "latency" else "MB/s"
-        reference = PERFORMANCE_REFERENCES[cluster][self.placement][metric]
+        partition = self.current_partition.fullname
+        value = PERFORMANCE_REFERENCES.get(partition, {}).get(self.placement, {}).get(metric)
+        if value is None:
+            return
         self.reference = {
-            f"{cluster}:batch": {
-                metric: (reference, -PERFORMANCE_TOLERANCE, PERFORMANCE_TOLERANCE, unit)
+            partition: {
+                metric: (value, -PERFORMANCE_TOLERANCE, PERFORMANCE_TOLERANCE, unit)
             }
         }
 

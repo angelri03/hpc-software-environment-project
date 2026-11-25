@@ -19,13 +19,13 @@ from reframe.core.builtins import (
 )
 
 PERFORMANCE_REFERENCES = {
-    "aion": {
+    "aion:batch": {
         "same_numa": {"latency": 0.59, "bandwidth": 14858},
         "cross_numa": {"latency": 2.34, "bandwidth": 12098},
         "cross_socket": {"latency": 3.78, "bandwidth": 9870},
         "inter_node": {"latency": 3.89, "bandwidth": 12328},
     },
-    "iris": {
+    "iris:broadwell": {
         "same_numa": {"latency": 1.81, "bandwidth": 16362},
         "cross_socket": {"latency": 3.64, "bandwidth": 16692},
         "inter_node": {"latency": 4.09, "bandwidth": 12123},
@@ -57,7 +57,7 @@ class OMBGenericBuild(rfm.CompileOnlyRegressionTest):
     """One OMB source build per system partition, reused by all run tests."""
 
     descr = "Build OMB 7.5 from source with foss/2025a"
-    valid_systems = ["aion:batch", "iris:batch"]
+    valid_systems = ["aion:batch", "iris:broadwell", "iris:skylake"]
     valid_prog_environs = ["testing-foss"]
 
     # No source tree is copied: prepare_omb.py populates a fresh stage dir.
@@ -84,7 +84,7 @@ class OMBGenericBuild(rfm.CompileOnlyRegressionTest):
 
 class _OMBGenericRun(rfm.RunOnlyRegressionTest):
     placement = parameter(list(AION_PLACEMENTS))
-    valid_systems = ["aion:batch", "iris:batch"]
+    valid_systems = ["aion:batch", "iris:broadwell", "iris:skylake"]
     valid_prog_environs = ["testing-foss"]
 
     executable = "/bin/true"  # Replaced with the compiled binary in run hook.
@@ -173,16 +173,17 @@ printf 'BIND_OK rank=%s host=%s cpu=%s socket=%s numa=%s\n' \
 
     @run_before("run")
     def configure_performance_reference(self):
-        cluster = self.current_system.name
-
         metric = "latency" if self.omb_binary == "osu_latency" else "bandwidth"
 
         unit = "us" if metric == "latency" else "MB/s"
 
-        value = PERFORMANCE_REFERENCES[cluster][self.placement][metric]
+        partition = self.current_partition.fullname
+        value = PERFORMANCE_REFERENCES.get(partition, {}).get(self.placement, {}).get(metric)
+        if value is None:
+            return
 
         self.reference = {
-            f"{cluster}:batch": {
+            partition: {
                 metric: (
                     value,
                     -PERFORMANCE_TOLERANCE,

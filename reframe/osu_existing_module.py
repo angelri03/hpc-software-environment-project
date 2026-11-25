@@ -2,7 +2,8 @@
 
 Aion: 8 tests; Iris: 6 applicable tests (cross_numa is skipped).
 Run: reframe -C config/aion.py --system aion:batch -c osu_existing_module.py -r
-     reframe -C config/iris.py --system iris:batch -c osu_existing_module.py -r
+     reframe -C config/iris.py --system iris:broadwell -c osu_existing_module.py -r
+     reframe -C config/iris.py --system iris:skylake -c osu_existing_module.py -r
 """
 
 import shlex
@@ -17,13 +18,13 @@ from reframe.core.builtins import (
 )
 
 PERFORMANCE_REFERENCES = {
-    "aion": {
+    "aion:batch": {
         "same_numa": {"latency": 0.59, "bandwidth": 14858},
         "cross_numa": {"latency": 2.34, "bandwidth": 12098},
         "cross_socket": {"latency": 3.78, "bandwidth": 9870},
         "inter_node": {"latency": 3.89, "bandwidth": 12328},
     },
-    "iris": {
+    "iris:broadwell": {
         "same_numa": {"latency": 1.81, "bandwidth": 16362},
         "cross_socket": {"latency": 3.64, "bandwidth": 16692},
         "inter_node": {"latency": 4.09, "bandwidth": 12123},
@@ -58,7 +59,7 @@ def placements_for(system):
 class _OMBExistingModule(rfm.RunOnlyRegressionTest):
     placement = parameter(list(AION_PLACEMENTS))
 
-    valid_systems = ["aion:batch", "iris:batch"]
+    valid_systems = ["aion:batch", "iris:broadwell", "iris:skylake"]
     valid_prog_environs = ["testing-foss"]
     # Only the OMB module is test-specific; foss is provided by the environment.
     modules = ["perf/OSU-Micro-Benchmarks/7.5-gompi-2025a"]
@@ -132,16 +133,17 @@ printf 'BIND_OK rank=%s host=%s cpu=%s socket=%s numa=%s\n' \
 
     @run_before("run")
     def configure_performance_reference(self):
-        cluster = self.current_system.name
-
         metric = "latency" if self.executable == "osu_latency" else "bandwidth"
 
         unit = "us" if metric == "latency" else "MB/s"
 
-        value = PERFORMANCE_REFERENCES[cluster][self.placement][metric]
+        partition = self.current_partition.fullname
+        value = PERFORMANCE_REFERENCES.get(partition, {}).get(self.placement, {}).get(metric)
+        if value is None:
+            return
 
         self.reference = {
-            f"{cluster}:batch": {
+            partition: {
                 metric: (
                     value,
                     -PERFORMANCE_TOLERANCE,

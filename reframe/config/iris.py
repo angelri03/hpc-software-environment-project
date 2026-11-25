@@ -2,17 +2,26 @@ site_configuration = {
     "systems": [
         {
             "name": "iris",
-            "descr": "ULHPC Iris cluster)",
+            "descr": "ULHPC Iris cluster",
             "hostnames": [r"iris-[0-9]{3}"],
             "modules_system": "lmod",
             "partitions": [
                 {
-                    "name": "batch",
+                    "name": "broadwell",
+                    "descr": "iris compute nodes, broadwell",
                     "scheduler": "slurm",
                     "launcher": "srun",
-                    "access": ["--partition=batch"],
+                    "access": ["--partition=batch", "--constraint=broadwell"],
                     "environs": ["testing-foss", "testing-easybuild"],
-                }
+                },
+                {
+                    "name": "skylake",
+                    "descr": "iris compute nodes, skylake",
+                    "scheduler": "slurm",
+                    "launcher": "srun",
+                    "access": ["--partition=batch", "--constraint=skylake"],
+                    "environs": ["testing-foss", "testing-easybuild"],
+                },
             ],
         }
     ],
