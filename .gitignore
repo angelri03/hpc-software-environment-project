@@ -13,6 +13,13 @@ Thumbs.db
 /reframe.log
 /reframe.out
 /*.log
+/reframe/stage/
+/reframe/output/
+/reframe/perflogs/
+/reframe/reports/
+/reframe/*.log
+/reframe/*.out
+/reframe/src/
 
 # --- slurm ---
 slurm-*.out
