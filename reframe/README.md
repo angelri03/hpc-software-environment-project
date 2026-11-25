@@ -40,10 +40,9 @@ hpc-se-project/
 - EasyBuild compilation requires `tools/EasyBuild` and write access
   to the ReFrame staging directory, with network access for missing sources or
   dependencies. It uses a project-local EasyConfig with `toolchain/foss/2025a`.
-- On Iris, every job is restricted to Broadwell nodes (`--constraint=broadwell`
-  in `config/iris.py`). The Iris `batch` partition mixes Broadwell and Skylake
-  nodes; pinning one node type keeps results comparable, and the Iris CPU
-  placements and references below were measured on Broadwell.
+- The Iris Slurm `batch` partition mixes Broadwell and Skylake nodes.
+  `config/iris.py` defines one ReFrame partition per node type, `iris:broadwell` (`--constraint=broadwell`) and `iris:skylake` (`--constraint=skylake`), so their results are never mixed.
+  The Iris CPU placements and references below were measured on Broadwell.
 
 ## Usage
 
@@ -66,8 +65,11 @@ reframe -C config/aion.py -c osu_existing_module.py -r -v
 **Iris:**
 
 ```bash
-reframe -C config/iris.py -c osu_existing_module.py -r -v
+reframe -C config/iris.py --system iris:broadwell -c osu_existing_module.py -r -v
+reframe -C config/iris.py --system iris:skylake   -c osu_existing_module.py -r -v
 ```
+
+On Iris, `--system` selects the node type. Without it, ReFrame runs the tests on both partitions separately. The same applies to the commands below.
 
 To list the available tests without executing them, replace `-r -v` with `-l`.
 
@@ -78,7 +80,7 @@ To list the available tests without executing them, replace `-r -v` with `-l`.
 reframe -C config/aion.py -c osu_generic_compile.py -r -v
 
 # Iris
-reframe -C config/iris.py -c osu_generic_compile.py -r -v
+reframe -C config/iris.py --system iris:broadwell -c osu_generic_compile.py -r -v
 ```
 
 This case builds OMB 7.5 once per system partition using `toolchain/foss/2025a`
@@ -95,7 +97,7 @@ staging directory and installs the binaries under that directory's `osu/` prefix
 reframe -C config/aion.py -c osu_easybuild_compile.py -r -v
 
 # Iris
-reframe -C config/iris.py -c osu_easybuild_compile.py -r -v
+reframe -C config/iris.py --system iris:broadwell -c osu_easybuild_compile.py -r -v
 ```
 
 This case builds OMB 7.5 once per system partition using the project-local
@@ -183,8 +185,9 @@ bandwidth at 1,048,576 bytes in `MB/s`.
 | `inter_node` | Two nodes, one rank per node | 0 on each node | 0 on each node |
 
 Each implementation runs eight benchmark cases on Aion and six applicable cases
-on Iris. Generic and EasyBuild compilation each also include a shared build test. Iris has one
-NUMA domain per socket, so its `cross_numa` cases are automatically skipped.
+on each Iris partition. Generic and EasyBuild compilation each also include a
+build test per partition. Iris has one NUMA domain per socket, so its
+`cross_numa` cases are automatically skipped.
 
 Before each benchmark, a preflight step checks the CPU, socket, and NUMA binding
 using the same `srun` options as the benchmark. A mismatch aborts the job. Sanity
