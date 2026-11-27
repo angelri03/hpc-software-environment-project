@@ -63,23 +63,24 @@ class OMBGenericBuild(rfm.CompileOnlyRegressionTest):
     # No source tree is copied: prepare_omb.py populates a fresh stage dir.
     sourcesdir = None
     sourcepath = ""
-    build_system = "CustomBuild"
+    build_system = "Autotools"
 
     @run_before("compile")
     def configure_build(self):
         # Runs on the submitting host. Requires network only on cache misses.
+        source_dir = os.path.join(self.stagedir, SOURCE_SUBDIR)
+        install_dir = os.path.join(self.stagedir, "osu")
         self.prebuild_cmds = [
             f"python3 {shlex.quote(str(PREPARE_SCRIPT))} "
-            f"--cache {shlex.quote(str(SOURCE_CACHE))} --dest ."
+            f"--cache {shlex.quote(str(SOURCE_CACHE))} --dest .",
+            f"cd {shlex.quote(source_dir)}",
         ]
-        directory = shlex.quote(SOURCE_SUBDIR)
-        self.build_system.commands = [
-            f"(cd {directory} && ./configure "
-            "CC=mpicc CXX=mpicxx "
-            '--prefix="$(pwd)/../osu")',
-            f"make -C {directory} -j 8",
-            f"make -C {directory} install",
-        ]
+        self.build_system.cc = "mpicc"
+        self.build_system.cxx = "mpicxx"
+        self.build_system.max_concurrency = 8
+        self.build_system.config_opts = ["--prefix=" + shlex.quote(install_dir)]
+
+        self.postbuild_cmds = [f"make -C {shlex.quote(source_dir)} install"]
 
 
 class _OMBGenericRun(rfm.RunOnlyRegressionTest):
@@ -178,7 +179,11 @@ printf 'BIND_OK rank=%s host=%s cpu=%s socket=%s numa=%s\n' \
         unit = "us" if metric == "latency" else "MB/s"
 
         partition = self.current_partition.fullname
-        value = PERFORMANCE_REFERENCES.get(partition, {}).get(self.placement, {}).get(metric)
+        value = (
+            PERFORMANCE_REFERENCES.get(partition, {})
+            .get(self.placement, {})
+            .get(metric)
+        )
         if value is None:
             return
 
